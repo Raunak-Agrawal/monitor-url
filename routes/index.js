@@ -3,29 +3,48 @@ const router = express.Router();
 const { mongoose } = require("../db/mongoose");
 const { ObjectID } = require("mongodb");
 const { User } = require("../models/User");
-var start = new Date();
+const fetch = require("node-fetch");
 
+// import axios from "axios";
+
+var respTime;
 router.post("/insert", (req, res) => {
   var newUser = new User({
-    url: req.body.url,
-    _id: req.body._id
+    url: req.body.url
   });
-  var results = [];
-  newUser.save().then(
-    setInterval(result => {
-      res.send(result);
-      console.log(res.statusCode);
-      console.log(req.body._id);
-      results.push((new Date() - start) / 1000);
-      console.log(`Time taken is ${(new Date() - start) / 1000} seconds`);
-    }, 1000),
-    err => {
-      res.status(404).send(err);
+  newUser.save(function(err, objectid) {
+    var returnedId = objectid._id;
+    var test = objectid.url;
+    var respTime = setInterval(cal_resp_time, 1000);
+    function cal_resp_time() {
+      var start = new Date();
+      fetch(test, {
+        method: "POST",
+        body: JSON.stringify({ data: "ABC" }),
+        headers: { "Content-Type": "application/json" }
+      }).then(function(data) {
+        var endTime = (new Date() - start) / 1000;
+        User.findByIdAndUpdate(
+          returnedId,
+          {
+            $push: {
+              time: [endTime]
+            }
+          },
+          function(err, doc) {
+            if (err) {
+              throw err;
+            } else {
+              console.log("Updated");
+            }
+          }
+        );
+      });
     }
-  );
-  console.log(results);
+  });
 });
-router.get("/getallUser/:id", (req, res) => {
+
+router.get("/getAllInfo/:id", (req, res) => {
   var id = req.params.id;
   if (!ObjectID.isValid(id)) {
     return res.status(404).send();
@@ -35,13 +54,15 @@ router.get("/getallUser/:id", (req, res) => {
       if (!result) {
         res.status(400).send();
       }
-      res.send(result);
+      console.log(result.url);
+      res.send(result.time.slice(-50));
     },
     err => {
       res.status(404).send();
     }
   );
 });
+
 router.delete("/data/delete/:id", (req, res) => {
   var id = req.params.id;
   if (!ObjectID.isValid(id)) {
@@ -52,6 +73,7 @@ router.delete("/data/delete/:id", (req, res) => {
       if (!result) {
         return res.status(400).send();
       }
+      clearInterval(respTime);
       res.status(200).send(result);
     })
     .catch(e => {
@@ -59,18 +81,19 @@ router.delete("/data/delete/:id", (req, res) => {
     });
 });
 
-router.patch("/Update/:id", (req, res) => {
+router.put("/Update/:id", (req, res) => {
+  var url = req.body.url;
   var id = req.params.id;
   if (!ObjectID.isValid(id)) {
     res.status(400).send();
   }
   User.findOneAndUpdate(id, {
     $set: {
-      url: "https://www.facebook.com"
+      url: url
     }
   }).then(
     resp => {
-      console.log("In UPdate User");
+      console.log("Updated User");
       res.send(resp);
     },
     e => {

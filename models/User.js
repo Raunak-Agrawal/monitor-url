@@ -5,8 +5,9 @@ const newSchema = new Schema({
     type: String,
     required: true
   },
-  _id: {
-    type: Schema.Types.ObjectId
+
+  time: {
+    type: Array
   }
 });
 var User = mongoose.model("users", newSchema);
